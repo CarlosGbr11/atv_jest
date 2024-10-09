@@ -1,39 +1,40 @@
-const { getUserById, connection} = require('./db');
+const { getUserById, connection } = require('./db');
 
-describe('Testes para getUserById', () => {
+describe('Testes para CRUD de agendamento de horários', () => {
+
     beforeAll(async () => {
-
-        await connection.query('CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), email VARCHAR(255))');
-        await connection.query("INSERT INTO users (name, email) VALUES ('Marcos Vinicius', 'marcos@mail.com')");
-        await connection.query("INSERT INTO users (name, email) VALUES ('Marcos', 'mcs@mail.com')");
+        await connection.query(`CREATE TABLE IF NOT EXISTS agenda (id_agenda INT AUTO_INCREMENT PRIMARY KEY, nome_pessoa VARCHAR(255), contato_telefonico VARCHAR(20), email VARCHAR(255), data_agendamento DATETIME)`);
+        await connection.query(`INSERT INTO agenda (nome_pessoa, contato_telefonico, email, data_agendamento) VALUES ('Maria Silva', '123456789', 'maria@example.com', '2024-10-10 15:00:00'), ('João Souza', '987654321', 'joao@example.com', '2024-10-11 14:00:00')`);
     });
 
-    test('1- deve retornar o usuario correto pelo ID', async () => {
-        const user = await getUserById(1);
-        expect(user).toHaveProperty('name', 'Marcos Vinicius');
-        expect(user).toHaveProperty('email', 'marcos@mail.com');
+    test('1- Deve inserir um novo agendamento', async () => {
+        const [result] = await connection.query(`INSERT INTO agenda (nome_pessoa, contato_telefonico, email, data_agendamento) VALUES ('Carlos Gabriel', '123123123', 'carlos@mail.com', '2024-10-12 10:00:00')`);
+        expect(result.affectedRows).toBe(1);
     });
 
-    test('2- Vai retornaar undefined se o usuario não existir', async () => {
-        const user = await getUserById(999);
-        expect(user).toBeUndefined();
-    })
-    test('3- Verifica se parte do nome está presente', async () => {
-        const user = await getUserById(1);
-        expect(user.name).toMatch(/Mar/);
-    })
-    test('4- Vai verificar o número máximo de caracteres no campo do email', async () => {
-        const user = await getUserById(1);
-        expect(user.email.length).toBeLessThanOrEqual(50);
-    })    
-    test('5- Vai garantir que o campo do email não seja null ou undefined', async () => {
-        const user = await getUserById(1);
-        expect(user.email).not.toBeNull();
-        expect(user.email).not.toBeUndefined();
-    })
-    test('6- Vai garantir que o email está em um formato válido', async () => {
-        const user = await getUserById(1);
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        expect(user.email).toMatch(emailRegex);
+    test('2- Deve retornar todos os agendamentos', async () => {
+        const [rows] = await connection.query('SELECT * FROM agenda');
+        expect(rows.length).toBeGreaterThanOrEqual(2);
     });
-})
+
+    test('3- Deve retornar um agendamento por nome específico', async () => {
+        const [rows] = await connection.query('SELECT * FROM agenda WHERE nome_pessoa = ?', ['Maria Silva']);
+        expect(rows[0]).toHaveProperty('nome_pessoa', 'Maria Silva');
+    });
+
+    test('4- Deve retornar agendamentos dentro de um intervalo de datas', async () => {
+        const [rows] = await connection.query(`SELECT * FROM agenda WHERE data_agendamento BETWEEN '2024-10-09' AND '2024-10-12'`);
+        expect(rows.length).toBe(2); 
+    });
+
+    test('5- Deve atualizar o telefone de um agendamento', async () => {
+        const [result] = await connection.query(`UPDATE agenda SET contato_telefonico = ? WHERE nome_pessoa = ?`, ['999999999', 'Maria Silva']);
+        expect(result.affectedRows).toBe(1);
+    });
+
+    test('6- Deve deletar um agendamento pelo nome', async () => {
+        const [result] = await connection.query('DELETE FROM agenda WHERE nome_pessoa = ?', ['Carlos Gabriel']);
+        expect(result.affectedRows).toBe(1);
+    });
+
+});
